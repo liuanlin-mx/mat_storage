@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <map>
+#include <string>
 #include "mat_helper.h"
 
 struct node
@@ -202,8 +203,13 @@ void list_req(mat_helper_socket_t c)
 
 int main(int argc, char **argv)
 {
+    
+#ifdef MAT_STORAGE_OS_WINDOWS
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         return -1;
     }
@@ -228,7 +234,7 @@ int main(int argc, char **argv)
         struct sockaddr_in in_addr;
         mat_helper_socklen_t addr_len = sizeof(in_addr);
         mat_helper_socket_t c = accept(sock, (struct sockaddr *)&in_addr, &addr_len);
-        if (c == -1)
+        if (c == MAT_HELPER_INVALID_SOCKET)
         {
             break;
         }

@@ -26,12 +26,9 @@
         <IncludePath Value="."/>
         <IncludePath Value="/home/mx/local/include"/>
       </Compiler>
-      <Linker Options="-fsanitize=address;-fno-omit-frame-pointer" Required="yes">
+      <Linker Options="-static" Required="yes">
         <LibraryPath Value="/home/mx/local/lib"/>
-        <Library Value="mt"/>
-        <Library Value="opencv_core"/>
-        <Library Value="opencv_imgproc"/>
-        <Library Value="pthread"/>
+        <Library Value="ws2_32"/>
       </Linker>
       <ResourceCompiler Options="" Required="no"/>
       <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="$(ConfigurationName)" Command="$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>

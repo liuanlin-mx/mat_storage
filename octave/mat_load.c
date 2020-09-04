@@ -131,24 +131,30 @@ static void mat_helper_copyto_mx(int dims, int *dim_size, int type, char *src, c
 /* nrhs 输入参数个数 prhs输入参数列表 */
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-    if (nrhs < 2)
-    {
-        plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
-        return;
-    }
-    
-    if (!mxIsChar(prhs[0]) || !mxIsChar(prhs[1]))
-    {
-        plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
-        return;
-    }
-    
-    
     char ip[64] = {0};
     char name[64] = {0};
+    if (nrhs > 2)
+    {
+        plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
+        return;
+    }
     
-    mxGetString(prhs[0], ip, sizeof(ip));
-    mxGetString(prhs[1], name, sizeof(name));
+    if (nrhs == 1 && mxIsChar(prhs[0]))
+    {
+        strcpy(ip, "127.0.0.1");
+        mxGetString(prhs[0], name, sizeof(name));
+    }
+    else if (nrhs == 2 && mxIsChar(prhs[0]) && mxIsChar(prhs[1]))
+    {
+        mxGetString(prhs[0], ip, sizeof(ip));
+        mxGetString(prhs[1], name, sizeof(name));
+    }
+    else
+    {
+        plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
+        return;
+    }
+    
     
     int dims = 0;
     int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};

@@ -29,6 +29,7 @@
 
 typedef int mat_helper_socket_t;
 typedef socklen_t mat_helper_socklen_t;
+#define MAT_HELPER_INVALID_SOCKET (-1)
 
 inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
@@ -40,6 +41,7 @@ inline void mat_helper_close_socket(mat_helper_socket_t s)
 #include <windows.h>
 typedef int mat_helper_socklen_t;
 typedef SOCKET mat_helper_socket_t;
+#define MAT_HELPER_INVALID_SOCKET INVALID_SOCKET
 
 inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
@@ -49,7 +51,7 @@ inline void mat_helper_close_socket(mat_helper_socket_t s)
 #endif
 
 
-#define MAT_HELPER_PORT (12367)
+#define MAT_HELPER_PORT (18597)
 
 enum
 {
@@ -203,7 +205,7 @@ static int mat_helper_write(mat_helper_socket_t s, char *data, int data_len)
 static int mat_helper_write_mat(const char *ip, const char *name, int dims, int *dim_size, int type, char *data)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         return -1;
     }
@@ -263,7 +265,7 @@ static int mat_helper_write_mat(const char *ip, const char *name, int dims, int 
 static int mat_helper_read_mat_info(const char *ip, const char *name, int *dims, int *dim_size, int *type)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         return -1;
     }
@@ -319,7 +321,7 @@ static int mat_helper_read_mat_info(const char *ip, const char *name, int *dims,
 static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         return -1;
     }
@@ -394,7 +396,7 @@ static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int 
 static int mat_helper_read_list(const char *ip, char *buf, int buf_size)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         return -1;
     }
@@ -506,7 +508,7 @@ static int mat_helper_mat_helper2cvtype(int type)
     return CV_8U;
 }
 
-static int mat_helper_save(const char *ip, const char *name, cv::Mat& mat)
+static int mat_helper_save(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
     int dim_size[3] = {mat.rows, mat.cols, mat.channels()};
     int dims = 3;
@@ -535,7 +537,7 @@ static int mat_helper_save(const char *ip, const char *name, cv::Mat& mat)
 
 
 
-static int mat_helper_load(const char *ip, const char *name, cv::Mat& mat)
+static int mat_helper_load(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
     int dims = 0;
     int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
