@@ -10,7 +10,7 @@ int main(int argc, char **argv)
     if (1)
     {
         int dims = 3;
-        int dim_size[3] = {240, 320, 4};
+        int dim_size[3] = {3, 3, 3};
         
         static unsigned char buf[320 * 240 * 4];
         int mat_size = mat_helper_getsize(dims, dim_size, MAT_HELPER_UINT8);
@@ -21,18 +21,20 @@ int main(int argc, char **argv)
             printf("%u\n", buf[i]);
         }
         
-        int r = mat_helper_write_mat("127.0.0.1", "test", dims, dim_size, MAT_HELPER_UINT8, (char *)buf);
+        int r = mat_helper_write_mat("127.0.0.1", "test1", dims, dim_size, MAT_HELPER_UINT8, (char *)buf);
         printf("r:%d\n", r);
     }
-    if (0)
+    if (1)
     {
         cv::Mat img = cv::imread("1.png");
-        cv::resize(img, img, cv::Size(1280, 720), 1, 1);
+        //cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
+        cv::resize(img, img, cv::Size(640, 480), 1, 1);
         mat_helper_save("127.0.0.1", "test", img);
         cv::imshow("save", img);
-        cv::waitKey(10);
+        cv::waitKey(1000);
     }
     
+    if (0)
     {
         cv::Mat img;
         mat_helper_load("127.0.0.1", "test", img);
@@ -58,6 +60,11 @@ int main(int argc, char **argv)
         {
             printf("%u\n", buf[i]);
         }
+    }
+    {
+        static char buf[4096] = {0};
+        mat_helper_read_list("127.0.0.1", buf, sizeof(buf));
+        printf("%s", buf);
     }
 	return 0;
 }

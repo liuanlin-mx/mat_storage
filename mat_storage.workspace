@@ -2,16 +2,19 @@
 <CodeLite_Workspace Name="mat_storage" Database="" Version="10000">
   <Project Name="mat_storage" Path="mat_storage/mat_storage.project" Active="No"/>
   <Project Name="test" Path="test/test.project" Active="Yes"/>
+  <Project Name="octave" Path="octave/octave.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">
       <Environment/>
       <Project Name="mat_storage" ConfigName="Debug"/>
       <Project Name="test" ConfigName="Debug"/>
+      <Project Name="octave" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release" Selected="yes">
       <Environment/>
       <Project Name="mat_storage" ConfigName="Release"/>
       <Project Name="test" ConfigName="Release"/>
+      <Project Name="octave" ConfigName="Debug"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>
