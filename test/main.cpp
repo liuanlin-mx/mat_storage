@@ -28,12 +28,12 @@ int main(int argc, char **argv)
         int r = mat_helper_write_mat("127.0.0.1", "test1", dims, dim_size, MAT_HELPER_UINT8, (char *)buf);
         printf("r:%d\n", r);
     }
-    if (1)
+    if (0)
     {
         cv::Mat img = cv::imread("1.png");
         //cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
         cv::resize(img, img, cv::Size(640, 480), 1, 1);
-        mat_helper_save("127.0.0.1", "test", img);
+        mat_helper_save("test", img);
         cv::imshow("save", img);
         cv::waitKey(1000);
     }
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     if (0)
     {
         cv::Mat img;
-        mat_helper_load("127.0.0.1", "test", img);
+        mat_helper_load("test", img);
         
         cv::imshow("load", img);
         cv::waitKey();
@@ -70,5 +70,6 @@ int main(int argc, char **argv)
         mat_helper_read_list("127.0.0.1", buf, sizeof(buf));
         printf("%s", buf);
     }
+    getchar();
 	return 0;
 }

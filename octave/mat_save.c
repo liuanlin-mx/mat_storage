@@ -132,29 +132,37 @@ static void mx_copyto_mat_helper(int dims, int *dim_size, int type, char *src, c
 /* nrhs 输入参数个数 prhs输入参数列表 */
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
- 
-    if (nrhs < 3)
-    {
-        plhs[0] = mxCreateNumericMatrix(1, 1, mxLOGICAL_CLASS, mxREAL);
-        ((char *)mxGetData(plhs[0]))[0] = 0;
-        return;
-    }
-    
-    if (!mxIsChar(prhs[0]) || !mxIsChar(prhs[1]))
-    {
-        plhs[0] = mxCreateNumericMatrix(1, 1, mxLOGICAL_CLASS, mxREAL);
-        ((char *)mxGetData(plhs[0]))[0] = 0;
-        return;
-    }
-    
-    
     char ip[64] = {0};
     char name[64] = {0};
+    const mxArray *in = NULL;
+    if (nrhs > 3)
+    {
+        plhs[0] = mxCreateNumericMatrix(1, 1, mxLOGICAL_CLASS, mxREAL);
+        ((char *)mxGetData(plhs[0]))[0] = 0;
+        return;
+    }
     
-    mxGetString(prhs[0], ip, sizeof(ip));
-    mxGetString(prhs[1], name, sizeof(name));
+    if (nrhs == 2 && mxIsChar(prhs[0]))
+    {
+        strcpy(ip, "127.0.0.1");
+        mxGetString(prhs[0], name, sizeof(name));
+        in = prhs[1];
+    }
+    else if (nrhs == 3 && mxIsChar(prhs[0]) && mxIsChar(prhs[1]))
+    {
+        mxGetString(prhs[0], ip, sizeof(ip));
+        mxGetString(prhs[1], name, sizeof(name));
+        in = prhs[2];
+    }
+    else
+    {
+        plhs[0] = mxCreateNumericMatrix(1, 1, mxLOGICAL_CLASS, mxREAL);
+        ((char *)mxGetData(plhs[0]))[0] = 0;
+        return;
+    }
     
-    switch (mxGetClassID(prhs[2]))
+    
+    switch (mxGetClassID(in))
     {
         case mxDOUBLE_CLASS:
         case mxSINGLE_CLASS:
@@ -175,12 +183,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     
     int dims = 0;
     int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int type = _matlab_type_to_mat_helper(mxGetClassID(prhs[2]));
+    int type = _matlab_type_to_mat_helper(mxGetClassID(in));
     
-    dims = mxGetNumberOfDimensions(prhs[2]);
+    dims = mxGetNumberOfDimensions(in);
     for (int i = 0; i < dims; ++i)
     {
-        dim_size[i] = mxGetDimensions(prhs[2])[i];
+        dim_size[i] = mxGetDimensions(in)[i];
     }
 
     int mat_size = mat_helper_getsize(dims, dim_size, type);
@@ -191,7 +199,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         ((char *)mxGetData(plhs[0]))[0] = 0;
         return;
     }
-    mx_copyto_mat_helper(dims, dim_size, type, (char *)mxGetData(prhs[2]), tmp);
+    mx_copyto_mat_helper(dims, dim_size, type, (char *)mxGetData(in), tmp);
     if (-1 == mat_helper_write_mat(ip, name, dims, dim_size, type, tmp))
     {
         free(tmp);
