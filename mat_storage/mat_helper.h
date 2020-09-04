@@ -33,7 +33,7 @@ typedef socklen_t mat_helper_socklen_t;
 inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
     shutdown(s, 2);
-    ::close(s);
+    close(s);
 }
         
 #else
@@ -44,7 +44,7 @@ typedef SOCKET mat_helper_socket_t;
 inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
     shutdown(s, 2);
-    ::closesocket(s);
+    closesocket(s);
 }
 #endif
 
@@ -75,6 +75,8 @@ enum
     MAT_HELPER_TYPE_READ_RES,
     MAT_HELPER_TYPE_READ_INFO_REQ,
     MAT_HELPER_TYPE_READ_INFO_RES,
+    MAT_HELPER_TYPE_LIST_REQ,
+    MAT_HELPER_TYPE_LIST_RES,
 };
 
 enum
@@ -115,6 +117,17 @@ struct mat_helper_read_res
     unsigned char type;
     unsigned char result;
     struct mat_helper_mat_info info;
+};
+
+struct mat_helper_list_req
+{
+    unsigned char type;
+};
+
+struct mat_helper_list_res
+{
+    unsigned char type;
+    int len;
 };
 
 #pragma pack()
@@ -378,6 +391,66 @@ static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int 
 }
 
 
+static int mat_helper_read_list(const char *ip, char *buf, int buf_size)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == -1)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_list_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_LIST_REQ;
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_list_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    if (res.type != MAT_HELPER_TYPE_LIST_RES)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    int len = ntohl(res.len);
+    if (len > buf_size - 1)
+    {
+        len = buf_size - 1;
+    }
+    
+    if (mat_helper_read(sock, (char *)buf, len) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    buf[len] = 0;
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
 
 
 
@@ -421,6 +494,7 @@ static int mat_helper_mat_helper2cvtype(int type)
         case MAT_HELPER_INT16:
             return CV_16S;
         case MAT_HELPER_INT32:
+        case MAT_HELPER_UINT32:
             return CV_32S;
         case MAT_HELPER_FLOAT32:
             return CV_32F;
