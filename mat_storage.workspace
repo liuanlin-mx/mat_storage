@@ -9,11 +9,13 @@
       <Project Name="mat_storage" ConfigName="Debug"/>
       <Project Name="test" ConfigName="Debug"/>
       <Project Name="octave" ConfigName="Debug"/>
+      <Project Name="octave" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release" Selected="yes">
       <Environment/>
       <Project Name="mat_storage" ConfigName="Release"/>
       <Project Name="test" ConfigName="Release"/>
+      <Project Name="octave" ConfigName="Debug"/>
       <Project Name="octave" ConfigName="Debug"/>
     </WorkspaceConfiguration>
   </BuildMatrix>

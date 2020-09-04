@@ -7,6 +7,10 @@
 
 int main(int argc, char **argv)
 {
+#ifdef MAT_STORAGE_OS_WINDOWS
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
     if (1)
     {
         int dims = 3;
