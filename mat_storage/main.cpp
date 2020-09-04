@@ -30,7 +30,7 @@ void write_req(mat_helper_socket_t c)
         req.info.dim_size[i] = ntohl(req.info.dim_size[i]);
     }
     
-    int mat_size = mat_helper_getsize(req.info.dims, req.info.dim_size, req.type);
+    int mat_size = mat_helper_getsize(req.info.dims, req.info.dim_size, req.info.type);
     char *data = (char *)malloc(mat_size);
     if (data == NULL)
     {
