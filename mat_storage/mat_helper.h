@@ -160,6 +160,84 @@ static int __mat_helper_get_type_size(int type)
     }
     return 1;
 }
+
+
+static int mat_helper_str_to_type(const char *type)
+{
+    if (strcasecmp(type, "int8") == 0)
+    {
+        return MAT_HELPER_INT8;
+    }
+    else if (strcasecmp(type, "uint8") == 0)
+    {
+        return MAT_HELPER_UINT8;
+    }
+    else if (strcasecmp(type, "int16") == 0)
+    {
+        return MAT_HELPER_UINT16;
+    }
+    else if (strcasecmp(type, "uint16") == 0)
+    {
+        return MAT_HELPER_UINT16;
+    }
+    else if (strcasecmp(type, "int32") == 0)
+    {
+        return MAT_HELPER_INT32;
+    }
+    else if (strcasecmp(type, "uint32") == 0)
+    {
+        return MAT_HELPER_UINT32;
+    }
+    else if (strcasecmp(type, "int64") == 0)
+    {
+        return MAT_HELPER_INT64;
+    }
+    else if (strcasecmp(type, "uint64") == 0)
+    {
+        return MAT_HELPER_UINT64;
+    }
+    else if (strcasecmp(type, "float32") == 0 || strcasecmp(type, "float") == 0)
+    {
+        return MAT_HELPER_FLOAT32;
+    }
+    else if (strcasecmp(type, "float64") == 0 || strcasecmp(type, "double") == 0)
+    {
+        return MAT_HELPER_FLOAT64;
+    }
+    return MAT_HELPER_UINT8;
+}
+
+
+static const char *mat_helper_type_to_str(int type)
+{
+    switch (type)
+    {
+        case MAT_HELPER_INT8:
+            return "int8";
+        case MAT_HELPER_UINT8:
+            return "uint8";
+        case MAT_HELPER_INT16:
+            return "int16";
+        case MAT_HELPER_UINT16:
+            return "uint16";
+        case MAT_HELPER_INT32:
+            return "int32";
+        case MAT_HELPER_UINT32:
+            return "uint32";
+        case MAT_HELPER_INT64:
+            return "int64";
+        case MAT_HELPER_UINT64:
+            return "uint64";
+        case MAT_HELPER_FLOAT32:
+            return "float32";
+        case MAT_HELPER_FLOAT64:
+            return "float64";
+        default:
+            return "int8";
+    }
+    return "int8";
+}
+
 static int mat_helper_getsize(int dims, int *dim_size, int type)
 {
     int size = 1;
@@ -259,6 +337,30 @@ static int mat_helper_write_mat(const char *ip, const char *name, int dims, int 
 
 
 
+static int mat_helper_write_mat2_1(const char *ip, const char *name, int rows, int cols, int ch, const char *type, void *data)
+{
+    int dim[3] = {rows, cols, ch};
+    return mat_helper_write_mat(ip, name, 3, dim, mat_helper_str_to_type(type), (char *)data);
+}
+
+static int mat_helper_write_mat2_2(const char *ip, const char *name, int rows, int cols, const char *type, void *data)
+{
+    int dim[2] = {rows, cols};
+    return mat_helper_write_mat(ip, name, 2, dim, mat_helper_str_to_type(type), (char *)data);
+}
+
+
+static int mat_helper_write_mat2_3(const char *name, int rows, int cols, int ch, const char *type, void *data)
+{
+    int dim[3] = {rows, cols, ch};
+    return mat_helper_write_mat("127.0.0.1", name, 3, dim, mat_helper_str_to_type(type), (char *)data);
+}
+
+static int mat_helper_write_mat2_4(const char *name, int rows, int cols, const char *type, void *data)
+{
+    int dim[2] = {rows, cols};
+    return mat_helper_write_mat("127.0.0.1", name, 2, dim, mat_helper_str_to_type(type), (char *)data);
+}
 
 
 
@@ -389,6 +491,96 @@ static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int 
     }
     mat_helper_close_socket(sock);
     
+    return 0;
+}
+
+static int mat_helper_read_mat2_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+
+static int mat_helper_read_mat2_2(const char *ip, const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+static int mat_helper_read_mat2_3(const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+
+static int mat_helper_read_mat2_4(const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+static int mat_helper_read_mat3_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    
+    return 0;
+}
+
+
+static int mat_helper_read_mat3_2(const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    
+    return 0;
+}
+
+static int mat_helper_read_mat3_3(const char *name, int *rows, int *cols, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
     return 0;
 }
 
