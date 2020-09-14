@@ -77,8 +77,12 @@ enum
     MAT_HELPER_TYPE_READ_RES,
     MAT_HELPER_TYPE_READ_INFO_REQ,
     MAT_HELPER_TYPE_READ_INFO_RES,
+    MAT_HELPER_TYPE_READ_DEL_REQ,
+    MAT_HELPER_TYPE_READ_DEL_RES,
     MAT_HELPER_TYPE_LIST_REQ,
     MAT_HELPER_TYPE_LIST_RES,
+    MAT_HELPER_TYPE_DEL_REQ,
+    MAT_HELPER_TYPE_DEL_RES,
 };
 
 enum
@@ -132,10 +136,22 @@ struct mat_helper_list_res
     int len;
 };
 
+
+struct mat_helper_del_req
+{
+    unsigned char type;
+    char name[64];
+};
+
+struct mat_helper_del_res
+{
+    unsigned char type;
+    unsigned char result;
+};
 #pragma pack()
 
 
-static int __mat_helper_get_type_size(int type)
+static inline int __mat_helper_get_type_size(int type)
 {
     switch (type)
     {
@@ -162,7 +178,7 @@ static int __mat_helper_get_type_size(int type)
 }
 
 
-static int mat_helper_str_to_type(const char *type)
+static inline int mat_helper_str_to_type(const char *type)
 {
     if (strcasecmp(type, "int8") == 0)
     {
@@ -238,7 +254,7 @@ static const char *mat_helper_type_to_str(int type)
     return "int8";
 }
 
-static int mat_helper_getsize(int dims, int *dim_size, int type)
+static inline int mat_helper_getsize(int dims, int *dim_size, int type)
 {
     int size = 1;
     for (int i = 0; i < dims; ++i)
@@ -249,7 +265,7 @@ static int mat_helper_getsize(int dims, int *dim_size, int type)
     return size * __mat_helper_get_type_size(type);
 }
 
-static int mat_helper_read(mat_helper_socket_t s, char *buf, int size)
+static inline int mat_helper_read(mat_helper_socket_t s, char *buf, int size)
 {
     int len = 0;
     while (len < size)
@@ -264,7 +280,7 @@ static int mat_helper_read(mat_helper_socket_t s, char *buf, int size)
     return len;
 }
 
-static int mat_helper_write(mat_helper_socket_t s, char *data, int data_len)
+static inline int mat_helper_write(mat_helper_socket_t s, char *data, int data_len)
 {
     int len = 0;
     while (len < data_len)
@@ -280,7 +296,7 @@ static int mat_helper_write(mat_helper_socket_t s, char *data, int data_len)
 }
 
 
-static int mat_helper_write_mat(const char *ip, const char *name, int dims, int *dim_size, int type, char *data)
+static inline int mat_helper_write_mat(const char *ip, const char *name, int dims, int *dim_size, int type, char *data)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == MAT_HELPER_INVALID_SOCKET)
@@ -337,26 +353,26 @@ static int mat_helper_write_mat(const char *ip, const char *name, int dims, int 
 
 
 
-static int mat_helper_write_mat2_1(const char *ip, const char *name, int rows, int cols, int ch, const char *type, void *data)
+static inline int mat_helper_write_mat2_1(const char *ip, const char *name, int rows, int cols, int ch, const char *type, void *data)
 {
     int dim[3] = {rows, cols, ch};
     return mat_helper_write_mat(ip, name, 3, dim, mat_helper_str_to_type(type), (char *)data);
 }
 
-static int mat_helper_write_mat2_2(const char *ip, const char *name, int rows, int cols, const char *type, void *data)
+static inline int mat_helper_write_mat2_2(const char *ip, const char *name, int rows, int cols, const char *type, void *data)
 {
     int dim[2] = {rows, cols};
     return mat_helper_write_mat(ip, name, 2, dim, mat_helper_str_to_type(type), (char *)data);
 }
 
 
-static int mat_helper_write_mat2_3(const char *name, int rows, int cols, int ch, const char *type, void *data)
+static inline int mat_helper_write_mat2_3(const char *name, int rows, int cols, int ch, const char *type, void *data)
 {
     int dim[3] = {rows, cols, ch};
     return mat_helper_write_mat("127.0.0.1", name, 3, dim, mat_helper_str_to_type(type), (char *)data);
 }
 
-static int mat_helper_write_mat2_4(const char *name, int rows, int cols, const char *type, void *data)
+static inline int mat_helper_write_mat2_4(const char *name, int rows, int cols, const char *type, void *data)
 {
     int dim[2] = {rows, cols};
     return mat_helper_write_mat("127.0.0.1", name, 2, dim, mat_helper_str_to_type(type), (char *)data);
@@ -364,7 +380,7 @@ static int mat_helper_write_mat2_4(const char *name, int rows, int cols, const c
 
 
 
-static int mat_helper_read_mat_info(const char *ip, const char *name, int *dims, int *dim_size, int *type)
+static inline int mat_helper_read_mat_info(const char *ip, const char *name, int *dims, int *dim_size, int *type)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == MAT_HELPER_INVALID_SOCKET)
@@ -420,7 +436,7 @@ static int mat_helper_read_mat_info(const char *ip, const char *name, int *dims,
     return 0;
 }
 
-static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
+static inline int mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == MAT_HELPER_INVALID_SOCKET)
@@ -494,7 +510,7 @@ static int mat_helper_read_mat(const char *ip, const char *name, int *dims, int 
     return 0;
 }
 
-static int mat_helper_read_mat2_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+static inline int mat_helper_read_mat2_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -508,7 +524,7 @@ static int mat_helper_read_mat2_1(const char *ip, const char *name, int *rows, i
 }
 
 
-static int mat_helper_read_mat2_2(const char *ip, const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+static inline int mat_helper_read_mat2_2(const char *ip, const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -520,7 +536,7 @@ static int mat_helper_read_mat2_2(const char *ip, const char *name, int *rows, i
     return 0;
 }
 
-static int mat_helper_read_mat2_3(const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+static inline int mat_helper_read_mat2_3(const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -534,7 +550,7 @@ static int mat_helper_read_mat2_3(const char *name, int *rows, int *cols, int *c
 }
 
 
-static int mat_helper_read_mat2_4(const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+static inline int mat_helper_read_mat2_4(const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -546,7 +562,7 @@ static int mat_helper_read_mat2_4(const char *name, int *rows, int *cols, char t
     return 0;
 }
 
-static int mat_helper_read_mat3_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+static inline int mat_helper_read_mat3_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -560,7 +576,7 @@ static int mat_helper_read_mat3_1(const char *ip, const char *name, int *rows, i
 }
 
 
-static int mat_helper_read_mat3_2(const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+static inline int mat_helper_read_mat3_2(const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -573,7 +589,7 @@ static int mat_helper_read_mat3_2(const char *name, int *rows, int *cols, int *c
     return 0;
 }
 
-static int mat_helper_read_mat3_3(const char *name, int *rows, int *cols, char *buf, int buf_size)
+static inline int mat_helper_read_mat3_3(const char *name, int *rows, int *cols, char *buf, int buf_size)
 {
     int dims = 0;
     int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -585,7 +601,181 @@ static int mat_helper_read_mat3_3(const char *name, int *rows, int *cols, char *
 }
 
 
-static int mat_helper_read_list(const char *ip, char *buf, int buf_size)
+
+
+
+static inline int mat_helper_read_del_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_read_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_READ_DEL_REQ;
+    strcpy(req.name, name);
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_read_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_READ_DEL_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    for (int i = 0; i < res.info.dims; ++i)
+    {
+        res.info.dim_size[i] = ntohl(res.info.dim_size[i]);
+        dim_size[i] = res.info.dim_size[i];
+    }
+    
+    int mat_size = mat_helper_getsize(res.info.dims, res.info.dim_size, res.info.type);
+    if (mat_size > buf_size)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (mat_helper_read(sock, (char *)buf, mat_size) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    *dims = res.info.dims;
+    *type = res.info.type;
+    for (int i = 0; i < res.info.dims; ++i)
+    {
+        dim_size[i] = res.info.dim_size[i];
+    }
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+
+
+
+static inline int mat_helper_read_del_mat2_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+
+static inline int mat_helper_read_del_mat2_2(const char *ip, const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+static inline int mat_helper_read_del_mat2_3(const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+
+static inline int mat_helper_read_del_mat2_4(const char *name, int *rows, int *cols, char type[8], char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (type) { strcpy(type, mat_helper_type_to_str(type_)); }
+    return 0;
+}
+
+static inline int mat_helper_read_del_mat3_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat(ip, name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    
+    return 0;
+}
+
+
+static inline int mat_helper_read_del_mat3_2(const char *name, int *rows, int *cols, int *ch, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    if (ch && dims >= 2) { *ch = dim[1]; }
+    
+    return 0;
+}
+
+static inline int mat_helper_read_del_mat3_3(const char *name, int *rows, int *cols, char *buf, int buf_size)
+{
+    int dims = 0;
+    int dim[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type_ = MAT_HELPER_INT8;
+    if (-1 == mat_helper_read_del_mat("127.0.0.1", name, &dims, dim, &type_, buf, buf_size)) { return -1; }
+    if (rows && dims >= 1) { *rows = dim[0]; }
+    if (cols && dims >= 2) { *cols = dim[1]; }
+    return 0;
+}
+
+
+
+
+
+static inline int mat_helper_read_list(const char *ip, char *buf, int buf_size)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == MAT_HELPER_INVALID_SOCKET)
@@ -647,10 +837,63 @@ static int mat_helper_read_list(const char *ip, char *buf, int buf_size)
 }
 
 
+static inline int mat_helper_del_mat(const char *ip, const char *name)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_del_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_DEL_REQ;
+    strcpy(req.name, name);
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_del_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_DEL_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+static inline int mat_helper_del_mat2(const char *ip, const char *name)
+{
+	return mat_helper_del_mat("127.0.0.1", name);
+}
 
 #ifdef MAT_HELPER_USE_OPENCV
 
-static int mat_helper_cvtype2mat_helper(int depth)
+static inline int mat_helper_cvtype2mat_helper(int depth)
 {
     switch (depth)
     {
@@ -675,7 +918,7 @@ static int mat_helper_cvtype2mat_helper(int depth)
 }
 
 
-static int mat_helper_mat_helper2cvtype(int type)
+static inline int mat_helper_mat_helper2cvtype(int type)
 {
     switch (type)
     {
@@ -700,7 +943,7 @@ static int mat_helper_mat_helper2cvtype(int type)
     return CV_8U;
 }
 
-static int mat_helper_save(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
+static inline int mat_helper_save(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
     int dim_size[3] = {mat.rows, mat.cols, mat.channels()};
     int dims = 3;
@@ -729,7 +972,7 @@ static int mat_helper_save(const char *name, cv::Mat& mat, const char *ip = "127
 
 
 
-static int mat_helper_load(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
+static inline int mat_helper_load(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
     int dims = 0;
     int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -743,6 +986,46 @@ static int mat_helper_load(const char *name, cv::Mat& mat, const char *ip = "127
         return -1;
     }
     r = mat_helper_read_mat(ip, name, &dims, dim_size, &type, (char *)tmp, mat_size);
+    if (r == -1)
+    {
+        free(tmp);
+    }
+    
+    if (dims == 0)
+    {
+        return -1;
+    }
+    
+    if (dims < 2)
+    {
+        dim_size[1] = 1;
+    }
+    
+    if (dims < 3)
+    {
+        dim_size[2] = 1;
+    }
+    
+    mat = cv::Mat(dim_size[0], dim_size[1], CV_MAKETYPE(mat_helper_mat_helper2cvtype(type), dim_size[2]), tmp).clone();
+    free(tmp);
+    return 0;
+}
+
+
+static inline int mat_helper_load_del(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
+{
+    int dims = 0;
+    int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int type = 0;
+    int r = mat_helper_read_mat_info(ip, name, &dims, dim_size, &type);
+    int mat_size = mat_helper_getsize(dims, dim_size, type);
+    
+    char *tmp = (char *)malloc(mat_size);
+    if (tmp == NULL)
+    {
+        return -1;
+    }
+    r = mat_helper_read_del_mat(ip, name, &dims, dim_size, &type, (char *)tmp, mat_size);
     if (r == -1)
     {
         free(tmp);
