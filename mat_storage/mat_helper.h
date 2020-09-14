@@ -824,11 +824,13 @@ static inline int mat_helper_read_list(const char *ip, char *buf, int buf_size)
     {
         len = buf_size - 1;
     }
-    
-    if (mat_helper_read(sock, (char *)buf, len) < 0)
+    if (len > 0)
     {
-        mat_helper_close_socket(sock);
-        return -1;
+        if (mat_helper_read(sock, (char *)buf, len) < 0)
+        {
+            mat_helper_close_socket(sock);
+            return -1;
+        }
     }
     buf[len] = 0;
     mat_helper_close_socket(sock);
