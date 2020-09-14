@@ -237,7 +237,10 @@ void list_req(mat_helper_socket_t c)
     {
         return;
     }
-    mat_helper_write(c, (char *)str.c_str(), str.length());
+    if (str.length() > 0)
+    {
+        mat_helper_write(c, (char *)str.c_str(), str.length());
+    }
 }
 
 
