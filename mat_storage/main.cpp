@@ -101,6 +101,45 @@ void read_req(mat_helper_socket_t c)
 }
 
 
+void read_del_req(mat_helper_socket_t c)
+{
+    mat_helper_read_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_read_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_READ_DEL_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        mat_helper_close_socket(c);
+        return;
+    }
+    
+    if (mat_map.count(std::string(req.name)) == 0)
+    {
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+    }
+    
+    node& node_ = mat_map[std::string(req.name)];
+    res.info.dims = node_.info.dims;
+    for (int i = 0; i < node_.info.dims; ++i)
+    {
+        res.info.dim_size[i] = htonl(node_.info.dim_size[i]);
+    }
+    res.info.type = node_.info.type;
+    res.result = MAT_HELPER_OK;
+    
+    if (-1 == mat_helper_write(c, (char *)&res, sizeof(res)))
+    {
+        return;
+    }
+    int mat_size = mat_helper_getsize(node_.info.dims, node_.info.dim_size, node_.info.type);
+    mat_helper_write(c, (char *)node_.data, mat_size);
+    mat_map.erase(std::string(req.name));
+}
+
 void read_info_req(mat_helper_socket_t c)
 {
     mat_helper_read_req req;
@@ -201,6 +240,35 @@ void list_req(mat_helper_socket_t c)
     mat_helper_write(c, (char *)str.c_str(), str.length());
 }
 
+
+
+
+void del_req(mat_helper_socket_t c)
+{
+    mat_helper_del_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_del_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_DEL_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        mat_helper_close_socket(c);
+        return;
+    }
+    
+    if (mat_map.count(std::string(req.name)) == 0)
+    {
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+    }
+    
+    res.result = MAT_HELPER_OK;
+    mat_helper_write(c, (char *)&res, sizeof(res));
+    mat_map.erase(std::string(req.name));
+}
+
 int main(int argc, char **argv)
 {
     
@@ -252,11 +320,17 @@ int main(int argc, char **argv)
                 break;
             case MAT_HELPER_TYPE_READ_REQ:
                 read_req(c);
+            case MAT_HELPER_TYPE_READ_DEL_REQ:
+                read_del_req(c);
+                break;
             case MAT_HELPER_TYPE_READ_INFO_REQ:
                 read_info_req(c);
                 break;
             case MAT_HELPER_TYPE_LIST_REQ:
                 list_req(c);
+                break;
+            case MAT_HELPER_TYPE_DEL_REQ:
+                del_req(c);
                 break;
         }
         mat_helper_close_socket(c);
