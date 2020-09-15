@@ -77,8 +77,6 @@ enum
     MAT_HELPER_TYPE_READ_RES,
     MAT_HELPER_TYPE_READ_INFO_REQ,
     MAT_HELPER_TYPE_READ_INFO_RES,
-    MAT_HELPER_TYPE_READ_DEL_REQ,
-    MAT_HELPER_TYPE_READ_DEL_RES,
     MAT_HELPER_TYPE_LIST_REQ,
     MAT_HELPER_TYPE_LIST_RES,
     MAT_HELPER_TYPE_DEL_REQ,
@@ -115,6 +113,7 @@ struct mat_helper_write_res
 struct mat_helper_read_req
 {
     unsigned char type;
+    char del;
     char name[64];
 };
 
@@ -254,7 +253,7 @@ static const char *mat_helper_type_to_str(int type)
     return "int8";
 }
 
-static inline int mat_helper_getsize(int dims, int *dim_size, int type)
+static inline int mat_helper_getsize(int dims, const int *dim_size, int type)
 {
     int size = 1;
     for (int i = 0; i < dims; ++i)
@@ -436,7 +435,82 @@ static inline int mat_helper_read_mat_info(const char *ip, const char *name, int
     return 0;
 }
 
-static inline int mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
+
+static inline mat_helper_socket_t mat_helper_read_mat_begin(const char *ip, const char *name, struct mat_helper_mat_info *info, int del)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return sock;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return MAT_HELPER_INVALID_SOCKET;
+    }
+            
+    struct mat_helper_read_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_READ_REQ;
+    strcpy(req.name, name);
+    req.del = del? 1: 0;
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return MAT_HELPER_INVALID_SOCKET;
+    }
+    
+    
+    struct mat_helper_read_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return MAT_HELPER_INVALID_SOCKET;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_READ_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return MAT_HELPER_INVALID_SOCKET;
+    }
+    
+    for (int i = 0; i < res.info.dims; ++i)
+    {
+        res.info.dim_size[i] = ntohl(res.info.dim_size[i]);
+    }
+    *info = res.info;
+    
+    return sock;
+}
+
+
+static inline int mat_helper_read_mat_end(mat_helper_socket_t sock, const struct mat_helper_mat_info *info, char *buf, int buf_size)
+{
+    int mat_size = mat_helper_getsize(info->dims, info->dim_size, info->type);
+    if (mat_size > buf_size)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (mat_helper_read(sock, (char *)buf, mat_size) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+static inline int __mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size, int del)
 {
     mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == MAT_HELPER_INVALID_SOCKET)
@@ -460,6 +534,7 @@ static inline int mat_helper_read_mat(const char *ip, const char *name, int *dim
     memset(&req, 0, sizeof(req));
     req.type = MAT_HELPER_TYPE_READ_REQ;
     strcpy(req.name, name);
+    req.del = del? 1: 0;
     if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
     {
         mat_helper_close_socket(sock);
@@ -508,6 +583,12 @@ static inline int mat_helper_read_mat(const char *ip, const char *name, int *dim
     mat_helper_close_socket(sock);
     
     return 0;
+}
+
+
+static inline int mat_helper_read_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
+{;
+    return __mat_helper_read_mat(ip, name, dims, dim_size, type, buf, buf_size, 0);
 }
 
 static inline int mat_helper_read_mat2_1(const char *ip, const char *name, int *rows, int *cols, int *ch, char type[8], char *buf, int buf_size)
@@ -606,76 +687,7 @@ static inline int mat_helper_read_mat3_3(const char *name, int *rows, int *cols,
 
 static inline int mat_helper_read_del_mat(const char *ip, const char *name, int *dims, int *dim_size, int *type, char *buf, int buf_size)
 {
-    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == MAT_HELPER_INVALID_SOCKET)
-    {
-        return -1;
-    }
-    
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(MAT_HELPER_PORT);
-    addr.sin_addr.s_addr = inet_addr(ip);
-    
-    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-            
-    struct mat_helper_read_req req;
-    memset(&req, 0, sizeof(req));
-    req.type = MAT_HELPER_TYPE_READ_DEL_REQ;
-    strcpy(req.name, name);
-    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-    
-    
-    struct mat_helper_read_res res;
-    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-    
-    if (res.type != MAT_HELPER_TYPE_READ_DEL_RES || res.result != MAT_HELPER_OK)
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-    
-    for (int i = 0; i < res.info.dims; ++i)
-    {
-        res.info.dim_size[i] = ntohl(res.info.dim_size[i]);
-        dim_size[i] = res.info.dim_size[i];
-    }
-    
-    int mat_size = mat_helper_getsize(res.info.dims, res.info.dim_size, res.info.type);
-    if (mat_size > buf_size)
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-    
-    if (mat_helper_read(sock, (char *)buf, mat_size) < 0)
-    {
-        mat_helper_close_socket(sock);
-        return -1;
-    }
-    
-    *dims = res.info.dims;
-    *type = res.info.type;
-    for (int i = 0; i < res.info.dims; ++i)
-    {
-        dim_size[i] = res.info.dim_size[i];
-    }
-    mat_helper_close_socket(sock);
-    
-    return 0;
+    return __mat_helper_read_mat(ip, name, dims, dim_size, type, buf, buf_size, 1);
 }
 
 
@@ -976,39 +988,43 @@ static inline int mat_helper_save(const char *name, cv::Mat& mat, const char *ip
 
 static inline int mat_helper_load(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
-    int dims = 0;
-    int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int type = 0;
-    int r = mat_helper_read_mat_info(ip, name, &dims, dim_size, &type);
-    int mat_size = mat_helper_getsize(dims, dim_size, type);
+    struct mat_helper_mat_info info;
+    memset(&info, 0, sizeof(info));
+    mat_helper_socket_t sock = mat_helper_read_mat_begin(ip, name, &info, 0);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    int mat_size = mat_helper_getsize(info.dims, info.dim_size, info.type);
     
     char *tmp = (char *)malloc(mat_size);
     if (tmp == NULL)
     {
+        mat_helper_close_socket(sock);
         return -1;
     }
-    r = mat_helper_read_mat(ip, name, &dims, dim_size, &type, (char *)tmp, mat_size);
+    int r = mat_helper_read_mat_end(sock, &info, (char *)tmp, mat_size);
     if (r == -1)
     {
         free(tmp);
     }
     
-    if (dims == 0)
+    if (info.dims == 0)
     {
         return -1;
     }
     
-    if (dims < 2)
+    if (info.dims < 2)
     {
-        dim_size[1] = 1;
+        info.dim_size[1] = 1;
     }
     
-    if (dims < 3)
+    if (info.dims < 3)
     {
-        dim_size[2] = 1;
+        info.dim_size[2] = 1;
     }
     
-    mat = cv::Mat(dim_size[0], dim_size[1], CV_MAKETYPE(mat_helper_mat_helper2cvtype(type), dim_size[2]), tmp).clone();
+    mat = cv::Mat(info.dim_size[0], info.dim_size[1], CV_MAKETYPE(mat_helper_mat_helper2cvtype(info.type), info.dim_size[2]), tmp).clone();
     free(tmp);
     return 0;
 }
@@ -1016,39 +1032,43 @@ static inline int mat_helper_load(const char *name, cv::Mat& mat, const char *ip
 
 static inline int mat_helper_load_del(const char *name, cv::Mat& mat, const char *ip = "127.0.0.1")
 {
-    int dims = 0;
-    int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int type = 0;
-    int r = mat_helper_read_mat_info(ip, name, &dims, dim_size, &type);
-    int mat_size = mat_helper_getsize(dims, dim_size, type);
+    struct mat_helper_mat_info info;
+    memset(&info, 0, sizeof(info));
+    mat_helper_socket_t sock = mat_helper_read_mat_begin(ip, name, &info, 1);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    int mat_size = mat_helper_getsize(info.dims, info.dim_size, info.type);
     
     char *tmp = (char *)malloc(mat_size);
     if (tmp == NULL)
     {
+        mat_helper_close_socket(sock);
         return -1;
     }
-    r = mat_helper_read_del_mat(ip, name, &dims, dim_size, &type, (char *)tmp, mat_size);
+    int r = mat_helper_read_mat_end(sock, &info, (char *)tmp, mat_size);
     if (r == -1)
     {
         free(tmp);
     }
     
-    if (dims == 0)
+    if (info.dims == 0)
     {
         return -1;
     }
     
-    if (dims < 2)
+    if (info.dims < 2)
     {
-        dim_size[1] = 1;
+        info.dim_size[1] = 1;
     }
     
-    if (dims < 3)
+    if (info.dims < 3)
     {
-        dim_size[2] = 1;
+        info.dim_size[2] = 1;
     }
     
-    mat = cv::Mat(dim_size[0], dim_size[1], CV_MAKETYPE(mat_helper_mat_helper2cvtype(type), dim_size[2]), tmp).clone();
+    mat = cv::Mat(info.dim_size[0], info.dim_size[1], CV_MAKETYPE(mat_helper_mat_helper2cvtype(info.type), info.dim_size[2]), tmp).clone();
     free(tmp);
     return 0;
 }

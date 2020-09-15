@@ -156,46 +156,47 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     }
     
     
-    int dims = 0;
-    int dim_size[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int type = 0;
-    int r = mat_helper_read_mat_info(ip, name, &dims, dim_size, &type);
-    if (r != 0)
+    
+    struct mat_helper_mat_info info;
+    memset(&info, 0, sizeof(info));
+    mat_helper_socket_t sock = mat_helper_read_mat_begin(ip, name, &info, 1);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
     {
         plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
         return;
     }
     
-    int mat_size = mat_helper_getsize(dims, dim_size, type);
+    int mat_size = mat_helper_getsize(info.dims, info.dim_size, info.type);
     
     char *tmp = (char *)malloc(mat_size);
     if (tmp == NULL)
     {
+        mat_helper_close_socket(sock);
         plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
         return;
     }
-    mwSize ndims = dims;
+    mwSize ndims = info.dims;
     mwSize dims_[3] = {0, 0, 0};
-    for (int i = 0; i < dims; ++i)
+    for (int i = 0; i < info.dims; ++i)
     {
-        dims_[i] = dim_size[i];
+        dims_[i] = info.dim_size[i];
     }
     
-    r = mat_helper_read_del_mat(ip, name, &dims, dim_size, &type, (char *)tmp, mat_size);
+    int r = mat_helper_read_mat_end(sock, &info, (char *)tmp, mat_size);
     if (r != 0)
     {
         free(tmp);
         plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
         return;
     }
-    plhs[0] = mxCreateNumericArray(ndims, dims_, _mat_helper_to_matlab_type(type), mxREAL);
+    plhs[0] = mxCreateNumericArray(ndims, dims_, _mat_helper_to_matlab_type(info.type), mxREAL);
     if (plhs[0] == NULL)
     {
         free(tmp);
         plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
         return;
     }
-    mat_helper_copyto_mx(dims, dim_size, type, tmp, (char *)mxGetData(plhs[0]));
+    mat_helper_copyto_mx(info.dims, info.dim_size, info.type, tmp, (char *)mxGetData(plhs[0]));
     free(tmp);
     return;
 }

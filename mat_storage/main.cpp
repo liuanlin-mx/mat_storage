@@ -3,15 +3,86 @@
 #include <string>
 #include <thread>
 #include <functional>
+#include <mutex>
 #include "mat_helper.h"
 
 struct node
 {
+    node()
+    {
+        data = NULL;
+    }
+    
+    node(char *data_, struct mat_helper_mat_info info_)
+    {
+        data = data_;
+        info = info_;
+    }
+    
+    node(const node &node_)
+    {
+        int mat_size = mat_helper_getsize(node_.info.dims, node_.info.dim_size, node_.info.type);
+        data = (char *)malloc(mat_size);
+        if (data)
+        {
+            memcpy(data, node_.data, mat_size);
+            info = node_.info;
+        }
+    }
+    
+    node(node &&node_)
+    {
+        data = node_.data;
+        info = node_.info;
+        node_.data = NULL;
+    }
+    
+    ~node()
+    {
+        if (data)
+        {
+            free(data);
+        }
+    }
+    
+    node& operator=(node&& node_)
+    {
+        if (data)
+        {
+            free(data);
+        }
+        data = node_.data;
+        info = node_.info;
+        node_.data = NULL;
+        return *this;
+    }
+    
+    node& operator=(const node& node_)
+    {
+        if (data)
+        {
+            free(data);
+        }
+        
+        int mat_size = mat_helper_getsize(node_.info.dims, node_.info.dim_size, node_.info.type);
+        data = (char *)malloc(mat_size);
+        if (data)
+        {
+            memcpy(data, node_.data, mat_size);
+            info = node_.info;
+        }
+        return *this;
+    }
+    
+
     mat_helper_mat_info info;
     char *data;
 };
 
+
+
 std::map<std::string, node> mat_map;
+std::mutex mtx;
 
 void write_req(mat_helper_socket_t c)
 {
@@ -24,7 +95,6 @@ void write_req(mat_helper_socket_t c)
     
     if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
     {
-        mat_helper_close_socket(c);
         return;
     }
     for (int i = 0; i < req.info.dims; ++i)
@@ -40,9 +110,8 @@ void write_req(mat_helper_socket_t c)
         mat_helper_write(c, (char *)&res, sizeof(res));
         return;
     }
-    node node_;
-    node_.info = req.info;
-    node_.data = data;
+    
+    node node_(data, req.info);
     
     if (mat_helper_read(c, data, mat_size) == -1)
     {
@@ -52,11 +121,9 @@ void write_req(mat_helper_socket_t c)
         return;
     }
     
-    if (mat_map.count(std::string(req.name)))
-    {
-        free(mat_map[std::string(req.name)].data);
-    }
-    mat_map[std::string(req.name)] = node_;
+    mtx.lock();
+    mat_map[std::string(req.name)] = std::move(node_);
+    mtx.unlock();
     
     res.result = MAT_HELPER_OK;
     mat_helper_write(c, (char *)&res, sizeof(res));
@@ -75,17 +142,28 @@ void read_req(mat_helper_socket_t c)
     
     if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
     {
-        mat_helper_close_socket(c);
         return;
     }
     
+    mtx.lock();
     if (mat_map.count(std::string(req.name)) == 0)
     {
         res.result = MAT_HELPER_ERR;
         mat_helper_write(c, (char *)&res, sizeof(res));
+        mtx.unlock();
+        return;
     }
     
-    node& node_ = mat_map[std::string(req.name)];
+    node node_ = mat_map[std::string(req.name)];
+    mtx.unlock();
+    
+    if (node_.data == NULL)
+    {
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return;
+    }
+    
     res.info.dims = node_.info.dims;
     for (int i = 0; i < node_.info.dims; ++i)
     {
@@ -99,48 +177,17 @@ void read_req(mat_helper_socket_t c)
         return;
     }
     int mat_size = mat_helper_getsize(node_.info.dims, node_.info.dim_size, node_.info.type);
-    mat_helper_write(c, (char *)node_.data, mat_size);
+    if (-1 != mat_helper_write(c, (char *)node_.data, mat_size))
+    {
+        if (req.del)
+        {
+            mtx.lock();
+            mat_map.erase(std::string(req.name));
+            mtx.unlock();
+        }
+    }
 }
 
-
-void read_del_req(mat_helper_socket_t c)
-{
-    mat_helper_read_req req;
-    memset(&req, 0, sizeof(req));
-    
-    mat_helper_read_res res;
-    memset(&res, 0, sizeof(res));
-    res.type = MAT_HELPER_TYPE_READ_DEL_RES;
-    
-    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
-    {
-        mat_helper_close_socket(c);
-        return;
-    }
-    
-    if (mat_map.count(std::string(req.name)) == 0)
-    {
-        res.result = MAT_HELPER_ERR;
-        mat_helper_write(c, (char *)&res, sizeof(res));
-    }
-    
-    node& node_ = mat_map[std::string(req.name)];
-    res.info.dims = node_.info.dims;
-    for (int i = 0; i < node_.info.dims; ++i)
-    {
-        res.info.dim_size[i] = htonl(node_.info.dim_size[i]);
-    }
-    res.info.type = node_.info.type;
-    res.result = MAT_HELPER_OK;
-    
-    if (-1 == mat_helper_write(c, (char *)&res, sizeof(res)))
-    {
-        return;
-    }
-    int mat_size = mat_helper_getsize(node_.info.dims, node_.info.dim_size, node_.info.type);
-    mat_helper_write(c, (char *)node_.data, mat_size);
-    mat_map.erase(std::string(req.name));
-}
 
 void read_info_req(mat_helper_socket_t c)
 {
@@ -153,23 +200,27 @@ void read_info_req(mat_helper_socket_t c)
     
     if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
     {
-        mat_helper_close_socket(c);
         return;
     }
     
+    mtx.lock();
     if (mat_map.count(std::string(req.name)) == 0)
     {
         res.result = MAT_HELPER_ERR;
         mat_helper_write(c, (char *)&res, sizeof(res));
+        mtx.unlock();
+        return;
     }
+    struct mat_helper_mat_info info = mat_map[std::string(req.name)].info;
+    mtx.unlock();
     
-    node& node_ = mat_map[std::string(req.name)];
-    res.info.dims = node_.info.dims;
-    for (int i = 0; i < node_.info.dims; ++i)
+    
+    res.info.dims = info.dims;
+    for (int i = 0; i < info.dims; ++i)
     {
-        res.info.dim_size[i] = htonl(node_.info.dim_size[i]);
+        res.info.dim_size[i] = htonl(info.dim_size[i]);
     }
-    res.info.type = node_.info.type;
+    res.info.type = info.type;
     res.result = MAT_HELPER_OK;
     mat_helper_write(c, (char *)&res, sizeof(res));
 }
@@ -210,6 +261,7 @@ static const char *__mat_helper_get_type_str(int type)
 void list_req(mat_helper_socket_t c)
 {
     std::string str;
+    mtx.lock();
     for (std::map<std::string, node>::iterator it = mat_map.begin(); it != mat_map.end(); ++it)
     {
         char buf[128] = {0};
@@ -229,6 +281,7 @@ void list_req(mat_helper_socket_t c)
         }
         str += ") " + std::string(__mat_helper_get_type_str(it->second.info.type)) + "\n";
     }
+    mtx.unlock();
     
     mat_helper_list_res res;
     memset(&res, 0, sizeof(res));
@@ -259,19 +312,22 @@ void del_req(mat_helper_socket_t c)
     
     if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
     {
-        mat_helper_close_socket(c);
         return;
     }
     
+    mtx.lock();
     if (mat_map.count(std::string(req.name)) == 0)
     {
         res.result = MAT_HELPER_ERR;
         mat_helper_write(c, (char *)&res, sizeof(res));
+        mtx.unlock();
+        return;
     }
+    mat_map.erase(std::string(req.name));
+    mtx.unlock();
     
     res.result = MAT_HELPER_OK;
     mat_helper_write(c, (char *)&res, sizeof(res));
-    mat_map.erase(std::string(req.name));
 }
 
 
@@ -281,7 +337,6 @@ static void session_thread(mat_helper_socket_t c)
     char buf[512];
     if (-1 == mat_helper_read(c, buf, 1))
     {
-        mat_helper_close_socket(c);
         return;
     }
         
@@ -292,9 +347,6 @@ static void session_thread(mat_helper_socket_t c)
             break;
         case MAT_HELPER_TYPE_READ_REQ:
             read_req(c);
-        case MAT_HELPER_TYPE_READ_DEL_REQ:
-            read_del_req(c);
-            break;
         case MAT_HELPER_TYPE_READ_INFO_REQ:
             read_info_req(c);
             break;
