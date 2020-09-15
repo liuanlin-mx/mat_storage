@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <map>
 #include <string>
+#include <thread>
+#include <functional>
 #include "mat_helper.h"
 
 struct node
@@ -272,6 +274,40 @@ void del_req(mat_helper_socket_t c)
     mat_map.erase(std::string(req.name));
 }
 
+
+
+static void session_thread(mat_helper_socket_t c)
+{
+    char buf[512];
+    if (-1 == mat_helper_read(c, buf, 1))
+    {
+        mat_helper_close_socket(c);
+        return;
+    }
+        
+    switch (buf[0])
+    {
+        case MAT_HELPER_TYPE_WRITE_REQ:
+            write_req(c);
+            break;
+        case MAT_HELPER_TYPE_READ_REQ:
+            read_req(c);
+        case MAT_HELPER_TYPE_READ_DEL_REQ:
+            read_del_req(c);
+            break;
+        case MAT_HELPER_TYPE_READ_INFO_REQ:
+            read_info_req(c);
+            break;
+        case MAT_HELPER_TYPE_LIST_REQ:
+            list_req(c);
+            break;
+        case MAT_HELPER_TYPE_DEL_REQ:
+            del_req(c);
+            break;
+    }
+    mat_helper_close_socket(c);
+}
+
 int main(int argc, char **argv)
 {
     
@@ -309,35 +345,8 @@ int main(int argc, char **argv)
         {
             break;
         }
-        char buf[512];
-        if (-1 == mat_helper_read(c, buf, 1))
-        {
-            mat_helper_close_socket(c);
-            continue;
-        }
-        
-        switch (buf[0])
-        {
-            case MAT_HELPER_TYPE_WRITE_REQ:
-                write_req(c);
-                break;
-            case MAT_HELPER_TYPE_READ_REQ:
-                read_req(c);
-            case MAT_HELPER_TYPE_READ_DEL_REQ:
-                read_del_req(c);
-                break;
-            case MAT_HELPER_TYPE_READ_INFO_REQ:
-                read_info_req(c);
-                break;
-            case MAT_HELPER_TYPE_LIST_REQ:
-                list_req(c);
-                break;
-            case MAT_HELPER_TYPE_DEL_REQ:
-                del_req(c);
-                break;
-        }
-        mat_helper_close_socket(c);
-        
+        std::thread th(std::bind(session_thread, c));
+        th.detach();
     }
     mat_helper_close_socket(sock);
 	return 0;
