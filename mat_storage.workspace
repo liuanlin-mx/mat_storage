@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Workspace Name="mat_storage" Database="" Version="10000">
-  <Project Name="mat_storage" Path="mat_storage/mat_storage.project" Active="No"/>
-  <Project Name="test" Path="test/test.project" Active="Yes"/>
+  <Project Name="mat_storage" Path="mat_storage/mat_storage.project" Active="Yes"/>
+  <Project Name="test" Path="test/test.project" Active="No"/>
   <Project Name="octave" Path="octave/octave.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug" Selected="yes">

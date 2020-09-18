@@ -81,6 +81,14 @@ enum
     MAT_HELPER_TYPE_LIST_RES,
     MAT_HELPER_TYPE_DEL_REQ,
     MAT_HELPER_TYPE_DEL_RES,
+    MAT_HELPER_TYPE_SEM_INIT_REQ,
+    MAT_HELPER_TYPE_SEM_INIT_RES,
+    MAT_HELPER_TYPE_SEM_DESTROY_REQ,
+    MAT_HELPER_TYPE_SEM_DESTROY_RES,
+    MAT_HELPER_TYPE_SEM_WAIT_REQ,
+    MAT_HELPER_TYPE_SEM_WAIT_RES,
+    MAT_HELPER_TYPE_SEM_POST_REQ,
+    MAT_HELPER_TYPE_SEM_POST_RES,
 };
 
 enum
@@ -143,6 +151,52 @@ struct mat_helper_del_req
 };
 
 struct mat_helper_del_res
+{
+    unsigned char type;
+    unsigned char result;
+};
+
+
+struct mat_helper_sem_init_req
+{
+    unsigned char type;
+    unsigned char max;
+    char name[64];
+};
+struct mat_helper_sem_init_res
+{
+    unsigned char type;
+    unsigned char result;
+};
+
+struct mat_helper_sem_destroy_req
+{
+    unsigned char type;
+    char name[64];
+};
+struct mat_helper_sem_destroy_res
+{
+    unsigned char type;
+    unsigned char result;
+};
+
+struct mat_helper_sem_post_req
+{
+    unsigned char type;
+    char name[64];
+};
+struct mat_helper_sem_post_res
+{
+    unsigned char type;
+    unsigned char result;
+};
+
+struct mat_helper_sem_wait_req
+{
+    unsigned char type;
+    char name[64];
+};
+struct mat_helper_sem_wait_res
 {
     unsigned char type;
     unsigned char result;
@@ -904,6 +958,242 @@ static inline int mat_helper_del_mat2(const char *ip, const char *name)
 {
 	return mat_helper_del_mat("127.0.0.1", name);
 }
+
+
+
+
+
+
+
+static inline int mat_helper_sem_init(const char *ip, const char *name, unsigned char max)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_sem_init_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_SEM_INIT_REQ;
+    strcpy(req.name, name);
+    req.max = max;
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_sem_init_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_SEM_INIT_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+static inline int mat_helper_sem_init2_1(const char *name, unsigned char max)
+{
+    return mat_helper_sem_init("127.0.0.1", name, max);
+}
+
+static inline int mat_helper_sem_init2_2(const char *name)
+{
+    return mat_helper_sem_init("127.0.0.1", name, 255);
+}
+
+
+static inline int mat_helper_sem_destroy(const char *ip, const char *name)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_sem_destroy_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_SEM_DESTROY_REQ;
+    strcpy(req.name, name);
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_sem_destroy_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_SEM_DESTROY_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+
+static inline int mat_helper_sem_destroy2_1(const char *name)
+{
+    return mat_helper_sem_destroy("127.0.0.1", name); 
+}
+
+
+static inline int mat_helper_sem_post(const char *ip, const char *name)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_sem_post_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_SEM_POST_REQ;
+    strcpy(req.name, name);
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_sem_post_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_SEM_POST_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+static inline int mat_helper_sem_post2_1(const char *name)
+{
+    return mat_helper_sem_post("127.0.0.1", name);
+}
+
+
+static inline int mat_helper_sem_wait(const char *ip, const char *name)
+{
+    mat_helper_socket_t sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == MAT_HELPER_INVALID_SOCKET)
+    {
+        return -1;
+    }
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(MAT_HELPER_PORT);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    
+    if (0 != connect(sock, (struct sockaddr *)&addr, sizeof(addr)))
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+            
+    struct mat_helper_sem_wait_req req;
+    memset(&req, 0, sizeof(req));
+    req.type = MAT_HELPER_TYPE_SEM_WAIT_REQ;
+    strcpy(req.name, name);
+    if (mat_helper_write(sock, (char *)&req, sizeof(req)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    
+    struct mat_helper_sem_wait_res res;
+    if (mat_helper_read(sock, (char *)&res, sizeof(res)) < 0)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    if (res.type != MAT_HELPER_TYPE_SEM_WAIT_RES || res.result != MAT_HELPER_OK)
+    {
+        mat_helper_close_socket(sock);
+        return -1;
+    }
+    
+    mat_helper_close_socket(sock);
+    
+    return 0;
+}
+
+static inline int mat_helper_sem_wait2_1(const char *ip, const char *name)
+{
+    return mat_helper_sem_wait("127.0.0.1", name);
+}
+
+
+
+
 
 #ifdef MAT_HELPER_USE_OPENCV
 
