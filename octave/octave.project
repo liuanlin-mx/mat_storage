@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Project Name="octave" Version="11000" InternalType="">
   <VirtualDirectory Name="octave">
+    <File Name="mat_sem_wait.c"/>
+    <File Name="mat_sem_post.c"/>
+    <File Name="mat_sem_init.c"/>
+    <File Name="mat_sem_destroy.c"/>
     <File Name="mat_load_del.c"/>
     <File Name="mat_del.c"/>
     <File Name="mat_list.c"/>

@@ -4,6 +4,7 @@
 #include <thread>
 #include <functional>
 #include <mutex>
+#include <list>
 #include "mat_helper.h"
 
 struct node
@@ -80,8 +81,37 @@ struct node
 };
 
 
+struct sem_node
+{
+    std::uint8_t max;
+    std::uint8_t count;
+    std::list<mat_helper_socket_t> wait_list;
+    sem_node()
+    {
+        max = 255;
+        count = 0;
+    }
+    sem_node(std::uint8_t max_)
+    {
+        max = max_;
+        count = 0;
+    }
+    ~sem_node()
+    {
+        mat_helper_sem_wait_res res;
+        memset(&res, 0, sizeof(res));
+        res.type = MAT_HELPER_TYPE_SEM_WAIT_REQ;
+        res.result = MAT_HELPER_ERR;
+        for (auto i: wait_list)
+        {
+            mat_helper_write(i, (char *)&res, sizeof(res));
+            mat_helper_close_socket(i);
+        }
+    }
+};
 
 std::map<std::string, node> mat_map;
+std::map<std::string, sem_node> sem_map;
 std::mutex mtx;
 
 void write_req(mat_helper_socket_t c)
@@ -332,6 +362,148 @@ void del_req(mat_helper_socket_t c)
 
 
 
+
+
+
+void sem_init_req(mat_helper_socket_t c)
+{
+    mat_helper_sem_init_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_sem_init_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_SEM_INIT_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        return;
+    }
+    
+    mtx.lock();
+    if (sem_map.count(std::string(req.name)) > 0)
+    {
+        mtx.unlock();
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return;
+    }
+    struct sem_node node(req.max);
+    sem_map[std::string(req.name)] = node;
+    mtx.unlock();
+    
+    res.result = MAT_HELPER_OK;
+    mat_helper_write(c, (char *)&res, sizeof(res));
+}
+
+void sem_destroy_req(mat_helper_socket_t c)
+{
+    mat_helper_sem_destroy_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_sem_destroy_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_SEM_DESTROY_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        return;
+    }
+    
+    mtx.lock();
+    sem_map.erase(std::string(req.name));
+    mtx.unlock();
+    
+    res.result = MAT_HELPER_OK;
+    mat_helper_write(c, (char *)&res, sizeof(res));
+}
+
+int sem_wait_req(mat_helper_socket_t c)
+{
+    mat_helper_sem_wait_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_sem_wait_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_SEM_WAIT_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        return 0;
+    }
+    
+    mtx.lock();
+    if (sem_map.count(std::string(req.name)) == 0)
+    {
+        mtx.unlock();
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return 0;
+    }
+    if (sem_map[std::string(req.name)].count > 0)
+    {
+        sem_map[std::string(req.name)].count--;
+        mtx.unlock();
+        res.result = MAT_HELPER_OK;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return 0;
+    }
+    
+    sem_map[std::string(req.name)].wait_list.push_back(c);
+    mtx.unlock();
+    return 1;
+}
+
+
+void sem_post_req(mat_helper_socket_t c)
+{
+    mat_helper_sem_post_req req;
+    memset(&req, 0, sizeof(req));
+    
+    mat_helper_sem_post_res res;
+    memset(&res, 0, sizeof(res));
+    res.type = MAT_HELPER_TYPE_SEM_POST_RES;
+    
+    if (-1 == mat_helper_read(c, ((char *)&req) + 1, sizeof(req) - 1))
+    {
+        return;
+    }
+    
+    mtx.lock();
+    if (sem_map.count(std::string(req.name)) == 0)
+    {
+        mtx.unlock();
+        res.result = MAT_HELPER_ERR;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return;
+    }
+    
+    sem_node& node = sem_map[std::string(req.name)];
+    if (node.wait_list.size() > 0)
+    {
+        mat_helper_socket_t wait_c = node.wait_list.front();
+        node.wait_list.pop_front();
+        mtx.unlock();
+        
+        mat_helper_sem_wait_res wait_res;
+        memset(&wait_res, 0, sizeof(wait_res));
+        wait_res.type = MAT_HELPER_TYPE_SEM_WAIT_REQ;
+        wait_res.result = MAT_HELPER_ERR;
+        mat_helper_write(wait_c, (char *)&wait_res, sizeof(wait_res));
+        mat_helper_close_socket(wait_c);
+        
+        res.result = MAT_HELPER_OK;
+        mat_helper_write(c, (char *)&res, sizeof(res));
+        return;
+    }
+    if (node.count < node.max)
+    {
+        node.count++;
+    }
+    mtx.unlock();
+    res.result = MAT_HELPER_OK;
+    mat_helper_write(c, (char *)&res, sizeof(res));
+}
+
 static void session_thread(mat_helper_socket_t c)
 {
     char buf[512];
@@ -356,8 +528,32 @@ static void session_thread(mat_helper_socket_t c)
         case MAT_HELPER_TYPE_DEL_REQ:
             del_req(c);
             break;
+        case MAT_HELPER_TYPE_SEM_INIT_REQ:
+            sem_init_req(c);
+            break;
+        case MAT_HELPER_TYPE_SEM_DESTROY_REQ:
+            sem_destroy_req(c);
+            break;
+        case MAT_HELPER_TYPE_SEM_WAIT_REQ:
+            if (sem_wait_req(c))
+            {
+                return;
+            }
+            break;
+        case MAT_HELPER_TYPE_SEM_POST_REQ:
+            sem_post_req(c);
+            break;
     }
     mat_helper_close_socket(c);
+    
+    mtx.lock();
+    for (auto i : sem_map)
+    {
+        printf("sem name: %s\n", i.first.c_str());
+        printf("sem max%d\n", i.second.max);
+        printf("sem count%d\n", i.second.count);
+    }
+    mtx.unlock();
 }
 
 int main(int argc, char **argv)
