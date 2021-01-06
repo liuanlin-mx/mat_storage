@@ -163,7 +163,6 @@ void write_req(mat_helper_socket_t c)
     
     if (mat_helper_read(c, data, mat_size) == -1)
     {
-        free(data);
         res.result = MAT_HELPER_ERR;
         mat_helper_write(c, (char *)&res, sizeof(res));
         return;
@@ -537,6 +536,7 @@ static void session_thread(mat_helper_socket_t c)
             break;
         case MAT_HELPER_TYPE_READ_REQ:
             read_req(c);
+            break;
         case MAT_HELPER_TYPE_READ_INFO_REQ:
             read_info_req(c);
             break;
