@@ -49,7 +49,7 @@ typedef int mat_helper_socket_t;
 typedef socklen_t mat_helper_socklen_t;
 #define MAT_HELPER_INVALID_SOCKET (-1)
 
-inline void mat_helper_close_socket(mat_helper_socket_t s)
+static inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
     shutdown(s, 2);
     close(s);
@@ -61,7 +61,7 @@ typedef int mat_helper_socklen_t;
 typedef SOCKET mat_helper_socket_t;
 #define MAT_HELPER_INVALID_SOCKET INVALID_SOCKET
 
-inline void mat_helper_close_socket(mat_helper_socket_t s)
+static inline void mat_helper_close_socket(mat_helper_socket_t s)
 {
     shutdown(s, 2);
     closesocket(s);
